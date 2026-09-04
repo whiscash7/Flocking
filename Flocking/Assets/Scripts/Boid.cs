@@ -252,7 +252,25 @@ public class Boid : MonoBehaviour {
         return alignmentVelocity;
     }
     Vector3 MouseClick() {
-        return Vector3.zero;
+        Vector3 mouseClickVelocity = Vector3.zero;
+        if (Input.GetMouseButton(0))
+        {
+            Vector3 screenPos = Input.mousePosition;
+            screenPos.z = 10f;
+
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
+            worldPos.z = 0f;
+            Debug.Log(worldPos);
+
+            mouseClickVelocity = worldPos - transform.position;
+        }
+        if (!boidManager.mouseAttraction) {
+            mouseClickVelocity = -mouseClickVelocity;
+        }
+
+        mouseClickVelocity.Normalize();
+
+        return mouseClickVelocity;
     }
     Vector3 Border() {
         Vector3 borderVelocity = Vector3.zero;

@@ -58,14 +58,6 @@ public class BoidManager : MonoBehaviour
         for (int i = currentBoidCount; i > boidCount; i--) {
             RemoveBoid();
         }
-
-        //int realBoidCount = boid.GetBoidCount();
-        //if (realBoidCount < boidCount) {
-        //    for (int i = realBoidCount; i < boidCount; i++) {
-        //        Instantiate(boidPrefab, Vector3.zero, Quaternion.identity);
-        //    }
-        //    realBoidCount = boidCount;
-        //}
     }
 
     void SpawnBoid() {

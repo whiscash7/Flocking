@@ -106,6 +106,18 @@ public class Boid : MonoBehaviour {
         }
         sprite.color = new Color(colorR, colorG, colorB, 1f);
     }
+    void DrawRadius() {
+        int drawingSegments = 100;
+        float angleStep = 2f * Mathf.PI / drawingSegments;
+
+        for (int i = 0; i < drawingSegments; i++) {
+            float angle = i * angleStep;
+            float x = Mathf.Cos(angle) * (boidManager.detectionRadius * 0.1f);
+            float y = Mathf.Sin(angle) * (boidManager.detectionRadius * 0.1f);
+
+            line.SetPosition(i, new Vector3(x + transform.position.x, y + transform.position.y, 0));
+        }
+    }
 
     public void GetNeighbors() {
         // go through each in boidmanager's list
@@ -130,12 +142,14 @@ public class Boid : MonoBehaviour {
         Vector3 separationVelocity = Vector3.zero;
         Vector3 cohesionVelocity = Vector3.zero;
         Vector3 alignmentVelocity = Vector3.zero;
+        Vector3 mouseClickVelocity = Vector3.zero;
+        Vector3 borderVelocity = Vector3.zero;
+        Vector3 windVelocity = Vector3.zero;
 
         Vector3 newVelocity;
 
         // process rules for neighbors
         if (boidManager.separation) {
-            // here: returns a velocity
             separationVelocity = Separation();
         }
         if (boidManager.cohesion) {
@@ -144,10 +158,22 @@ public class Boid : MonoBehaviour {
         if (boidManager.alignment) {
             alignmentVelocity = Alignment();
         }
+        if (boidManager.mouseClick) {
+            mouseClickVelocity = MouseClick();
+        }
+        if (boidManager.border) {
+            borderVelocity = Border();
+        }
+        if (boidManager.wind) {
+            windVelocity = Wind();
+        }
 
-        newVelocity = alignmentVelocity * boidManager.alignmentWeight 
-                    + cohesionVelocity * boidManager.cohesionWeight 
-                    + separationVelocity * boidManager.separationWeight;
+        newVelocity = separationVelocity * boidManager.separationWeight
+                    + cohesionVelocity * boidManager.cohesionWeight
+                    + alignmentVelocity * boidManager.alignmentWeight 
+                    + mouseClickVelocity * boidManager.mouseClickWeight 
+                    + borderVelocity * boidManager.borderWeight 
+                    + windVelocity * boidManager.windWeight;
         newVelocity.Normalize();
 
         if (newVelocity == Vector3.zero) {
@@ -225,16 +251,30 @@ public class Boid : MonoBehaviour {
 
         return alignmentVelocity;
     }
-    void DrawRadius() {
-        int drawingSegments = 100;
-        float angleStep = 2f * Mathf.PI / drawingSegments;
-
-        for (int i = 0; i < drawingSegments; i++) {
-            float angle = i * angleStep;
-            float x = Mathf.Cos(angle) * (boidManager.detectionRadius * 0.1f);
-            float y = Mathf.Sin(angle) * (boidManager.detectionRadius * 0.1f);
-
-            line.SetPosition(i, new Vector3(x + transform.position.x, y + transform.position.y, 0));
+    Vector3 MouseClick() {
+        return Vector3.zero;
+    }
+    Vector3 Border() {
+        Vector3 borderVelocity = Vector3.zero;
+        if (transform.position.x >= xBound - boidManager.borderSize) {
+            borderVelocity.x -= 1f;
         }
+        if (transform.position.x <= -xBound + boidManager.borderSize) {
+            borderVelocity.x += 1f;
+        }
+        if (transform.position.y >= yBound - boidManager.borderSize) {
+            borderVelocity.y -= 1f;
+        }
+        if (transform.position.y <= -yBound + boidManager.borderSize) {
+            borderVelocity.y += 1f;
+        }
+        borderVelocity.Normalize();
+        return borderVelocity;
+    }
+    Vector3 Wind() {
+        Vector3 windVelocity = Vector3.zero;
+        float degreesRad = Mathf.Deg2Rad * (float)boidManager.windDirection;
+        windVelocity = new Vector3(Mathf.Sin(degreesRad), -Mathf.Cos(degreesRad), 0f);
+        return windVelocity;
     }
 }

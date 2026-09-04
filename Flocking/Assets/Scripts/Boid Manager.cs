@@ -16,14 +16,26 @@ public class BoidManager : MonoBehaviour
 
     // rules
     public bool separation = false;
-    public bool cohesion = false;
-    public bool alignment = false;
-
     public float separationWeight = 4.75f;
+    public float separationDistance = 5f;
+
+    public bool cohesion = false;
     public float cohesionWeight = 4.25f;
+
+    public bool alignment = false;
     public float alignmentWeight = 2.9f;
 
-    public float separationDistance = 5f;
+    public bool mouseClick = false;
+    public float mouseClickWeight = 2f;
+    public bool mouseAttraction = true;
+
+    public bool border = false;
+    public float borderWeight = 8f;
+    public float borderSize = 1f;
+
+    public bool wind = false;
+    public float windWeight = 1f;
+    public int windDirection = 180;
 
     public List<GameObject> boids = new List<GameObject>();
     void Start()

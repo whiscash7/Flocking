@@ -410,12 +410,21 @@ MonoBehaviour:
   detectionRadius: 10
   showRadius: 0
   separation: 0
-  cohesion: 0
-  alignment: 0
   separationWeight: 4.75
-  cohesionWeight: 4.25
-  alignmentWeight: 2.9
   separationDistance: 5
+  cohesion: 0
+  cohesionWeight: 4.25
+  alignment: 0
+  alignmentWeight: 2.9
+  mouseClick: 0
+  mouseClickWeight: 2
+  mouseAttraction: 1
+  border: 0
+  borderWeight: 8
+  borderSize: 1
+  wind: 0
+  windWeight: 1
+  windDirection: 180
   boids: []
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

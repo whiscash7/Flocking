@@ -1,15 +1,11 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
-using UnityEditor.TerrainTools;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.UIElements;
-using static UnityEngine.GraphicsBuffer;
 
 public class Boid : MonoBehaviour {
     SpriteRenderer sprite;
 
-    public Vector3 velocityNorm;
+    public Vector3 velocityCur;
+    public Vector3 velocityNew;
 
     float xBound = 9f;
     float yBound = 5f;
@@ -28,7 +24,7 @@ public class Boid : MonoBehaviour {
         transform.position = new Vector3(Random.Range((float)-xBound, (float)xBound), Random.Range((float)-yBound, (float)yBound), 0);
 
         float randomAngle = Random.Range(0f, Mathf.PI * 2f);
-        velocityNorm = new Vector3(Mathf.Cos(randomAngle), Mathf.Sin(randomAngle));
+        velocityCur = new Vector3(Mathf.Cos(randomAngle), Mathf.Sin(randomAngle));
 
         line = GetComponent<LineRenderer>();
         line.positionCount = 100;
@@ -58,19 +54,21 @@ public class Boid : MonoBehaviour {
             line.enabled = false;
         }
 
-            ProcessRules(boidManager.detectionRadius, 1 << 0);
+        ProcessRules();
 
         // look at velocity pos
-        Vector3 direction = (transform.position + velocityNorm) - transform.position;
+        Vector3 direction = (transform.position + velocityCur) - transform.position;
         transform.up = direction;
-
-        // move
-        transform.position += velocityNorm * boidManager.boidSpeed * Time.deltaTime;
 
     }
 
-    public Vector3 getVelocityNorm() {
-        return velocityNorm;
+    private void LateUpdate() {
+        // move
+        transform.position += velocityCur * Time.deltaTime;
+    }
+
+    public Vector3 getVelocityCur() {
+        return velocityCur;
     }
 
     void SetColor() {
@@ -126,7 +124,7 @@ public class Boid : MonoBehaviour {
         neighbors.Clear();
         foreach (GameObject neighbor in boidManager.boids) {
             // check it it is near border
-            // if (transform.position.x >= xBound - boidManager.)
+            // ^ im not doing this but if i had to i could
             if (neighbor == this.gameObject) continue;
 
             float distance = Vector3.Distance(transform.position, neighbor.transform.position);
@@ -135,7 +133,7 @@ public class Boid : MonoBehaviour {
             }
         }
     }
-    public void ProcessRules(float detectionRadius, LayerMask unitLayer) {
+    public void ProcessRules() {
         // get neighbors
         GetNeighbors();
 
@@ -146,7 +144,7 @@ public class Boid : MonoBehaviour {
         Vector3 borderVelocity = Vector3.zero;
         Vector3 windVelocity = Vector3.zero;
 
-        Vector3 newVelocity;
+        Vector3 totalForce;
 
         // process rules for neighbors
         if (boidManager.separation) {
@@ -168,18 +166,19 @@ public class Boid : MonoBehaviour {
             windVelocity = Wind();
         }
 
-        newVelocity = separationVelocity * boidManager.separationWeight
+        totalForce = separationVelocity * boidManager.separationWeight
                     + cohesionVelocity * boidManager.cohesionWeight
                     + alignmentVelocity * boidManager.alignmentWeight 
                     + mouseClickVelocity * boidManager.mouseClickWeight 
                     + borderVelocity * boidManager.borderWeight 
                     + windVelocity * boidManager.windWeight;
-        newVelocity.Normalize();
 
-        if (newVelocity == Vector3.zero) {
-            return;
+        if (totalForce.sqrMagnitude > 0.0001f) {
+            velocityCur += totalForce * Time.deltaTime;
         }
-        velocityNorm = newVelocity;
+
+        // keeps it below max speed
+        velocityCur = Vector3.ClampMagnitude(velocityCur, boidManager.boidMaxSpeed);
 
     }
     Vector3 Separation() {
@@ -192,24 +191,21 @@ public class Boid : MonoBehaviour {
 
             // process neighbor boids
             Vector3 distanceVec = transform.position - neighbor.transform.position;
-            float distanceMagSqr = distanceVec.sqrMagnitude;
+            float distance = distanceVec.magnitude;
 
-            // skip if too far away
-            if (distanceMagSqr > (boidManager.separationDistance * 0.1f) * (boidManager.separationDistance * 0.1f) || distanceMagSqr < 0.0001f) {
+            // skip if too far away or too close
+            if (distance > (boidManager.separationDistance * 0.1f) || distance < 0.0001f) {
                 continue;
             }
 
-            float dist = Mathf.Sqrt(distanceMagSqr);
-
-            Vector3 pushDirection = distanceVec / dist;
-            separationVelocity += pushDirection / dist;
+            separationVelocity += distanceVec.normalized / distance;
         }
-        separationVelocity.Normalize();
+        //separationVelocity.Normalize();
         return separationVelocity;
     }
     Vector3 Cohesion() {
         Vector3 cohesionVelocity;
-        Vector3 totalPos = Vector3.zero;
+        Vector3 centerOfMass = Vector3.zero;
         int neighborCount = 0;
         foreach (GameObject neighbor in neighbors) {
             // skip self-detection
@@ -218,21 +214,26 @@ public class Boid : MonoBehaviour {
             }
 
             // process neighbor boids
-            totalPos += neighbor.transform.position;
+            centerOfMass += neighbor.transform.position;
             neighborCount++;
         }
         if (neighborCount == 0) {
             return Vector3.zero;
         }
 
-        Vector3 averagePosition = totalPos / neighborCount;
-        cohesionVelocity = averagePosition - transform.position;
+        centerOfMass /= neighborCount;
+        cohesionVelocity = centerOfMass - transform.position;
+        
+        // stops the drift
+        if (cohesionVelocity.magnitude < 0.0001) {
+            return Vector3.zero;
+        }
         cohesionVelocity.Normalize();
 
         return cohesionVelocity;
     }
     Vector3 Alignment() {
-        Vector3 alignmentVelocity = velocityNorm;
+        Vector3 alignmentVelocity = velocityCur;
         int neighborCount = 1;
         foreach (GameObject neighbor in neighbors) {
             // skip self-detection
@@ -242,12 +243,12 @@ public class Boid : MonoBehaviour {
 
             // process neighbor boids
             if (neighbor.TryGetComponent<Boid>(out Boid boidScript)) {
-                alignmentVelocity += boidScript.velocityNorm;
+                alignmentVelocity += boidScript.velocityCur;
                 neighborCount++;
             }
         }
         alignmentVelocity /= neighborCount;
-        alignmentVelocity.Normalize();
+        //alignmentVelocity.Normalize();
 
         return alignmentVelocity;
     }
@@ -260,7 +261,6 @@ public class Boid : MonoBehaviour {
 
             Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
             worldPos.z = 0f;
-            Debug.Log(worldPos);
 
             mouseClickVelocity = worldPos - transform.position;
         }
